@@ -5,19 +5,37 @@ import pandas as pd
 import shap
 import matplotlib.pyplot as plt
 
-# 设置页面配置（可选，但推荐）
+# 设置页面配置
 st.set_page_config(
     page_title="PI预测模型",
     page_icon="🏥",
     layout="wide"
 )
 
+# 作者和单位信息
+AUTHOR_INFO = {
+    "author": "石层层",
+    "institution": "山东药品食品职业学院"
+}
+
 # 加载保存的随机森林模型
 model = joblib.load('rf.pkl')
 
+# 特征缩写映射（在后台代码中设置）
+feature_abbreviations = {
+    "NtproBNP": "Age",
+    "BMI": "Cog",
+    "LeftAtrialDiam": "Com",
+    "AFCourse": "CG",
+    "AtrialFibrillationType": "ACB",
+    "SystolicBP": "RC",
+    "Age": "PF",
+    "AST": "SF"
+}
+
 # 特征范围定义（根据提供的特征范围和数据类型）
 feature_ranges = {
-    "NtproBNP": {"type": "numerical", "min": 60, "max": 100, "default": 73, "label": "年龄 (岁)"},
+   "NtproBNP": {"type": "numerical", "min": 60, "max": 100, "default": 73, "label": "年龄 (岁)"},
     "BMI": {"type": "numerical", "min": 10.000, "max": 50.000, "default": 24.555, "label": "照护者技能（分数）"},
     "LeftAtrialDiam": {"type": "numerical", "min": 1.0, "max": 8.0, "default": 3.0, "label": "合并症数量"},
     "AFCourse": {"type": "numerical", "min": 0, "max": 100, "default": 12, "label": "照护指导（分数）"},
@@ -28,7 +46,14 @@ feature_ranges = {
 }
 
 # Streamlit 界面
-st.title("山东药品食品职业学院：延续护理模式下老年骨折卧床患者PI风险预测模型")
+st.title("“医院—家庭—社区”三区联合延续护理模式下的老年骨折卧床患者PI风险预测模型")
+
+# 添加作者信息（在主标题下方）
+st.markdown(f"""
+<div style='text-align: center; color: #666; margin-top: -10px; margin-bottom: 20px;'>
+    开发单位：{AUTHOR_INFO["institution"]} | 作者：{AUTHOR_INFO["author"]}
+</div>
+""", unsafe_allow_html=True)
 
 # 添加说明文本
 st.markdown("""
@@ -132,9 +157,12 @@ if st.button("开始预测", type="primary"):
     # 计算 SHAP 值
     with st.spinner('正在生成模型解释图...'):
         explainer = shap.TreeExplainer(model)
-        # 创建DataFrame时使用中文列名
-        feature_names_cn = [feature_ranges[feat]['label'] for feat in feature_ranges.keys()]
-        shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=feature_ranges.keys()))
+        
+        # 创建用于SHAP的DataFrame，使用缩写作为列名
+        shap_df = pd.DataFrame([feature_values], columns=feature_ranges.keys())
+        shap_df.columns = [feature_abbreviations[col] for col in shap_df.columns]
+        
+        shap_values = explainer.shap_values(shap_df)
 
         # 生成 SHAP 力图
         class_index = predicted_class  # 当前预测类别
@@ -142,13 +170,10 @@ if st.button("开始预测", type="primary"):
         shap_plot = shap.force_plot(
             explainer.expected_value[class_index],
             shap_values[:,:,class_index],
-            pd.DataFrame([feature_values], columns=feature_names_cn),  # 使用中文列名
+            shap_df,  # 使用带有缩写的DataFrame
             matplotlib=True,
             show=False
         )
-        
-        # 添加中文标题
-        plt.title("特征影响分析图", fontproperties='SimHei', fontsize=14)
         
         # 保存并显示 SHAP 图
         plt.savefig("shap_force_plot.png", bbox_inches='tight', dpi=300, 
@@ -157,8 +182,21 @@ if st.button("开始预测", type="primary"):
 
     # 显示SHAP解释图
     st.subheader("模型解释")
-    st.markdown("下图显示了各个临床指标对预测结果的贡献程度：")
+    st.markdown("下图显示了各个特征变量对预测结果的贡献程度：")
     st.image("shap_force_plot.png")
+    
+    # 添加特征缩写说明
+    with st.expander("特征缩写说明"):
+        st.markdown("| 缩写 | 全称 | 描述 |")
+        st.markdown("|------|------|------|")
+        st.markdown("| Age | Age | 年龄 |")
+        st.markdown("| Cog | Cognize | 照护者技能 |")
+        st.markdown("| Com | Complications | 合并症数量 |")
+        st.markdown("| CG | CareGuidance | 照护指导 |")
+        st.markdown("| ACB | AirCushionBed | 气垫床/充气床垫 |")
+        st.markdown("| RC | ResourceCoordination | 资源协调与支持 |")
+        st.markdown("| PF | PelvicFracture | 盆骨骨折 |")
+        st.markdown("| SF | SpecialFracture | 特殊骨折 |")
     
     # 添加图例说明
     with st.expander("如何解读此图"):
@@ -173,7 +211,11 @@ if st.button("开始预测", type="primary"):
 # 添加侧边栏信息
 with st.sidebar:
     st.header("关于本应用")
-    st.markdown("""
+    st.markdown(f"""
+    ### 开发信息
+    - **开发单位**: {AUTHOR_INFO["institution"]}
+    - **作者**: {AUTHOR_INFO["author"]}
+    
     ### 模型信息
     - **算法**: XGBoost
     - **预测目标**: 压力性损伤(PI)
@@ -193,6 +235,10 @@ with st.sidebar:
 # 添加页脚
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: gray;'>临床决策支持工具 • 仅供参考</div>", 
+    f"""
+    <div style='text-align: center; color: gray;'>
+        临床决策支持工具 • {AUTHOR_INFO["institution"]} • {AUTHOR_INFO["author"]} • 仅供参考
+    </div>
+    """, 
     unsafe_allow_html=True
 )
