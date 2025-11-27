@@ -28,8 +28,7 @@ feature_ranges = {
 }
 
 # Streamlit 界面
-st.title("山东药品食品职业学院：
-延续护理模式下老年骨折卧床患者PI风险预测模型")
+st.title("山东药品食品职业学院：延续护理模式下老年骨折卧床患者PI风险预测模型")
 
 # 添加说明文本
 st.markdown("""
