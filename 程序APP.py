@@ -17,9 +17,9 @@ model = joblib.load('rf.pkl')
 
 # 特征范围定义（根据提供的特征范围和数据类型）
 feature_ranges = {
-    "NtproBNP": {"type": "numerical", "min": 0.000, "max": 50000.000, "default": 670.236, "label": "年龄 (岁)"},
+    "NtproBNP": {"type": "numerical", "min": 60, "max": 100, "default": 73, "label": "年龄 (岁)"},
     "BMI": {"type": "numerical", "min": 10.000, "max": 50.000, "default": 24.555, "label": "照护者技能（分数）"},
-    "LeftAtrialDiam": {"type": "numerical", "min": 1.0, "max": 80.0, "default": 3.0, "label": "合并症数量"},
+    "LeftAtrialDiam": {"type": "numerical", "min": 1.0, "max": 8.0, "default": 3.0, "label": "合并症数量"},
     "AFCourse": {"type": "numerical", "min": 0, "max": 100, "default": 12, "label": "照护指导（分数）"},
     "AtrialFibrillationType": {"type": "categorical", "options": [0, 1], "default": 0, "label": "气垫床/充气床垫", "option_labels": {0: "未使用", 1: "使用"}},
     "SystolicBP": {"type": "numerical", "min": 50, "max": 200, "default": 116, "label": "资源协调与支持（分数）"},
