@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 # 设置页面配置（可选，但推荐）
 st.set_page_config(
-    page_title="AKI预测模型",
+    page_title="PI预测模型",
     page_icon="🏥",
     layout="wide"
 )
@@ -17,22 +17,23 @@ model = joblib.load('rf.pkl')
 
 # 特征范围定义（根据提供的特征范围和数据类型）
 feature_ranges = {
-    "NtproBNP": {"type": "numerical", "min": 0.000, "max": 50000.000, "default": 670.236, "label": "Nt-proBNP (pg/mL)"},
-    "BMI": {"type": "numerical", "min": 10.000, "max": 50.000, "default": 24.555, "label": "身体质量指数 (kg/m²)"},
-    "LeftAtrialDiam": {"type": "numerical", "min": 1.0, "max": 80.0, "default": 3.7, "label": "左心房直径 (cm)"},
-    "AFCourse": {"type": "numerical", "min": 0, "max": 100, "default": 12, "label": "房颤病程 (月)"},
-    "AtrialFibrillationType": {"type": "categorical", "options": [0, 1], "default": 0, "label": "房颤类型", "option_labels": {0: "阵发性", 1: "持续性"}},
-    "SystolicBP": {"type": "numerical", "min": 50, "max": 200, "default": 116, "label": "收缩压 (mmHg)"},
-    "Age": {"type": "numerical", "min": 18, "max": 100, "default": 71, "label": "年龄 (岁)"},
-    "AST": {"type": "numerical", "min": 0, "max": 1000, "default": 24, "label": "天门冬氨酸氨基转移酶 (U/L)"},
+    "NtproBNP": {"type": "numerical", "min": 0.000, "max": 50000.000, "default": 670.236, "label": "年龄 (岁)"},
+    "BMI": {"type": "numerical", "min": 10.000, "max": 50.000, "default": 24.555, "label": "照护者技能（分数）"},
+    "LeftAtrialDiam": {"type": "numerical", "min": 1.0, "max": 80.0, "default": 3.0, "label": "合并症数量"},
+    "AFCourse": {"type": "numerical", "min": 0, "max": 100, "default": 12, "label": "照护指导（分数）"},
+    "AtrialFibrillationType": {"type": "categorical", "options": [0, 1], "default": 0, "label": "气垫床/充气床垫", "option_labels": {0: "未使用", 1: "使用"}},
+    "SystolicBP": {"type": "numerical", "min": 50, "max": 200, "default": 116, "label": "资源协调与支持（分数）"},
+    "Age": {"type": "numerical", "min": 18, "max": 100, "default": 71, "label": "盆骨骨折（量化值）"},
+    "AST": {"type": "numerical", "min": 0, "max": 1000, "default": 24, "label": "特殊骨折（量化值）"},
 }
 
 # Streamlit 界面
-st.title("急性肾损伤(AKI)风险预测模型")
+st.title("山东药品食品职业学院：
+延续护理模式下老年骨折卧床患者PI风险预测模型")
 
 # 添加说明文本
 st.markdown("""
-本应用基于机器学习模型预测患者发生急性肾损伤(AKI)的风险。
+本应用基于机器学习模型预测在“医院—家庭—社区”三区联合延续护理模式下的老年骨折卧床患者PI风险。
 请在下方的表单中输入患者的临床指标，然后点击"开始预测"按钮。
 """)
 
@@ -175,8 +176,8 @@ with st.sidebar:
     st.header("关于本应用")
     st.markdown("""
     ### 模型信息
-    - **算法**: 随机森林
-    - **预测目标**: 急性肾损伤(AKI)
+    - **算法**: XGBoost
+    - **预测目标**: 压力性损伤(PI)
     - **应用场景**: 临床风险评估
     
     ### 使用说明
