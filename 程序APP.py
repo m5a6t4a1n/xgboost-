@@ -5,80 +5,194 @@ import pandas as pd
 import shap
 import matplotlib.pyplot as plt
 
+# 设置页面配置（可选，但推荐）
+st.set_page_config(
+    page_title="AKI预测模型",
+    page_icon="🏥",
+    layout="wide"
+)
+
 # 加载保存的随机森林模型
 model = joblib.load('rf.pkl')
 
 # 特征范围定义（根据提供的特征范围和数据类型）
 feature_ranges = {
-    "NtproBNP": {"type": "numerical", "min": 0.000, "max": 50000.000, "default": 670.236},
-    "BMI": {"type": "numerical", "min": 10.000, "max": 50.000, "default": 24.555},
-    "LeftAtrialDiam": {"type": "numerical", "min": 1.0, "max": 80.0, "default": 3.7},
-    "AFCourse": {"type": "numerical", "min": 0, "max": 100, "default": 12},
-    "AtrialFibrillationType": {"type": "categorical", "options": [0, 1], "default": 0},
-    "SystolicBP": {"type": "numerical", "min": 50, "max": 200, "default": 116},
-    "Age": {"type": "numerical", "min": 18, "max": 100, "default": 71},
-    "AST": {"type": "numerical", "min": 0, "max": 1000, "default": 24},
+    "NtproBNP": {"type": "numerical", "min": 0.000, "max": 50000.000, "default": 670.236, "label": "Nt-proBNP (pg/mL)"},
+    "BMI": {"type": "numerical", "min": 10.000, "max": 50.000, "default": 24.555, "label": "身体质量指数 (kg/m²)"},
+    "LeftAtrialDiam": {"type": "numerical", "min": 1.0, "max": 80.0, "default": 3.7, "label": "左心房直径 (cm)"},
+    "AFCourse": {"type": "numerical", "min": 0, "max": 100, "default": 12, "label": "房颤病程 (月)"},
+    "AtrialFibrillationType": {"type": "categorical", "options": [0, 1], "default": 0, "label": "房颤类型", "option_labels": {0: "阵发性", 1: "持续性"}},
+    "SystolicBP": {"type": "numerical", "min": 50, "max": 200, "default": 116, "label": "收缩压 (mmHg)"},
+    "Age": {"type": "numerical", "min": 18, "max": 100, "default": 71, "label": "年龄 (岁)"},
+    "AST": {"type": "numerical", "min": 0, "max": 1000, "default": 24, "label": "天门冬氨酸氨基转移酶 (U/L)"},
 }
 
 # Streamlit 界面
-st.title("Prediction Model with SHAP Visualization")
+st.title("急性肾损伤(AKI)风险预测模型")
+
+# 添加说明文本
+st.markdown("""
+本应用基于机器学习模型预测患者发生急性肾损伤(AKI)的风险。
+请在下方的表单中输入患者的临床指标，然后点击"开始预测"按钮。
+""")
 
 # 动态生成输入项
-st.header("Enter the following feature values:")
+st.header("请输入患者临床指标:")
 feature_values = []
-for feature, properties in feature_ranges.items():
-    if properties["type"] == "numerical":
-        value = st.number_input(
-            label=f"{feature} ({properties['min']} - {properties['max']})",
-            min_value=float(properties["min"]),
-            max_value=float(properties["max"]),
-            value=float(properties["default"]),
-        )
-    elif properties["type"] == "categorical":
-        value = st.selectbox(
-            label=f"{feature} (Select a value)",
-            options=properties["options"],
-        )
-    feature_values.append(value)
 
-# 转换为模型输入格式
-features = np.array([feature_values])
+# 创建两列布局，使界面更紧凑
+col1, col2 = st.columns(2)
+
+features_list = list(feature_ranges.keys())
+half_point = len(features_list) // 2
+
+for i, feature in enumerate(features_list):
+    properties = feature_ranges[feature]
+    
+    # 根据位置选择列
+    if i < half_point:
+        with col1:
+            if properties["type"] == "numerical":
+                value = st.number_input(
+                    label=f"{properties['label']}",
+                    min_value=float(properties["min"]),
+                    max_value=float(properties["max"]),
+                    value=float(properties["default"]),
+                    help=f"范围: {properties['min']} - {properties['max']}"
+                )
+            elif properties["type"] == "categorical":
+                # 对于分类变量，使用选择框并显示中文标签
+                option_labels = properties.get("option_labels", {k: str(k) for k in properties["options"]})
+                selected_label = st.selectbox(
+                    label=f"{properties['label']}",
+                    options=properties["options"],
+                    format_func=lambda x: option_labels[x],
+                    index=properties["options"].index(properties["default"])
+                )
+                value = selected_label
+            feature_values.append(value)
+    else:
+        with col2:
+            if properties["type"] == "numerical":
+                value = st.number_input(
+                    label=f"{properties['label']}",
+                    min_value=float(properties["min"]),
+                    max_value=float(properties["max"]),
+                    value=float(properties["default"]),
+                    help=f"范围: {properties['min']} - {properties['max']}"
+                )
+            elif properties["type"] == "categorical":
+                option_labels = properties.get("option_labels", {k: str(k) for k in properties["options"]})
+                selected_label = st.selectbox(
+                    label=f"{properties['label']}",
+                    options=properties["options"],
+                    format_func=lambda x: option_labels[x],
+                    index=properties["options"].index(properties["default"])
+                )
+                value = selected_label
+            feature_values.append(value)
+
+# 添加一个分隔线
+st.markdown("---")
 
 # 预测与 SHAP 可视化
-if st.button("Predict"):
-    # 模型预测
-    predicted_class = model.predict(features)[0]
-    predicted_proba = model.predict_proba(features)[0]
+if st.button("开始预测", type="primary"):
+    # 显示加载指示器
+    with st.spinner('模型正在计算中，请稍候...'):
+        # 转换为模型输入格式
+        features = np.array([feature_values])
 
-    # 提取预测的类别概率
-    probability = predicted_proba[predicted_class] * 100
+        # 模型预测
+        predicted_class = model.predict(features)[0]
+        predicted_proba = model.predict_proba(features)[0]
 
-    # 显示预测结果，使用 Matplotlib 渲染指定字体
-    text = f"Based on feature values, predicted possibility of AKI is {probability:.2f}%"
-    fig, ax = plt.subplots(figsize=(8, 1))
-    ax.text(
-        0.5, 0.5, text,
-        fontsize=16,
-        ha='center', va='center',
-        fontname='Times New Roman',
-        transform=ax.transAxes
-    )
-    ax.axis('off')
-    plt.savefig("prediction_text.png", bbox_inches='tight', dpi=300)
-    st.image("prediction_text.png")
+        # 提取预测的类别概率
+        probability = predicted_proba[predicted_class] * 100
+
+    # 显示预测结果
+    st.subheader("预测结果")
+    
+    # 使用进度条和指标显示概率
+    st.metric(label="AKI发生概率", value=f"{probability:.2f}%")
+    st.progress(int(probability))
+    
+    # 添加风险等级解读
+    if probability < 20:
+        risk_level = "低风险"
+        color = "green"
+    elif probability < 50:
+        risk_level = "中风险"
+        color = "orange"
+    else:
+        risk_level = "高风险"
+        color = "red"
+    
+    st.markdown(f"<h4 style='color: {color};'>风险等级: {risk_level}</h4>", unsafe_allow_html=True)
 
     # 计算 SHAP 值
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=feature_ranges.keys()))
+    with st.spinner('正在生成模型解释图...'):
+        explainer = shap.TreeExplainer(model)
+        # 创建DataFrame时使用中文列名
+        feature_names_cn = [feature_ranges[feat]['label'] for feat in feature_ranges.keys()]
+        shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=feature_ranges.keys()))
 
-    # 生成 SHAP 力图
-    class_index = predicted_class  # 当前预测类别
-    shap_fig = shap.force_plot(
-        explainer.expected_value[class_index],
-        shap_values[:,:,class_index],
-        pd.DataFrame([feature_values], columns=feature_ranges.keys()),
-        matplotlib=True,
-    )
-    # 保存并显示 SHAP 图
-    plt.savefig("shap_force_plot.png", bbox_inches='tight', dpi=1200)
+        # 生成 SHAP 力图
+        class_index = predicted_class  # 当前预测类别
+        plt.figure(figsize=(10, 4))
+        shap_plot = shap.force_plot(
+            explainer.expected_value[class_index],
+            shap_values[:,:,class_index],
+            pd.DataFrame([feature_values], columns=feature_names_cn),  # 使用中文列名
+            matplotlib=True,
+            show=False
+        )
+        
+        # 添加中文标题
+        plt.title("特征影响分析图", fontproperties='SimHei', fontsize=14)
+        
+        # 保存并显示 SHAP 图
+        plt.savefig("shap_force_plot.png", bbox_inches='tight', dpi=300, 
+                   facecolor='white', edgecolor='none')
+        plt.close()
+
+    # 显示SHAP解释图
+    st.subheader("模型解释")
+    st.markdown("下图显示了各个临床指标对预测结果的贡献程度：")
     st.image("shap_force_plot.png")
+    
+    # 添加图例说明
+    with st.expander("如何解读此图"):
+        st.markdown("""
+        - **红色箭头**：增加AKI风险的因素
+        - **蓝色箭头**：降低AKI风险的因素  
+        - **箭头长度**：表示该因素影响程度的大小
+        - **基准值**：模型在训练数据上的平均预测值
+        - **输出值**：当前患者的预测值
+        """)
+
+# 添加侧边栏信息
+with st.sidebar:
+    st.header("关于本应用")
+    st.markdown("""
+    ### 模型信息
+    - **算法**: 随机森林
+    - **预测目标**: 急性肾损伤(AKI)
+    - **应用场景**: 临床风险评估
+    
+    ### 使用说明
+    1. 在右侧表单中输入患者临床指标
+    2. 点击"开始预测"按钮
+    3. 查看预测结果和模型解释
+    
+    ### 注意事项
+    - 本工具仅供临床参考
+    - 实际诊疗请结合临床判断
+    - 如有疑问请咨询专业医师
+    """)
+
+# 添加页脚
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: gray;'>临床决策支持工具 • 仅供参考</div>", 
+    unsafe_allow_html=True
+)
