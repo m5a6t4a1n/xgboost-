@@ -113,7 +113,7 @@ if st.button("开始预测", type="primary"):
     st.subheader("预测结果")
     
     # 使用进度条和指标显示概率
-    st.metric(label="AKI发生概率", value=f"{probability:.2f}%")
+    st.metric(label="PI发生概率", value=f"{probability:.2f}%")
     st.progress(int(probability))
     
     # 添加风险等级解读
@@ -163,8 +163,8 @@ if st.button("开始预测", type="primary"):
     # 添加图例说明
     with st.expander("如何解读此图"):
         st.markdown("""
-        - **红色箭头**：增加AKI风险的因素
-        - **蓝色箭头**：降低AKI风险的因素  
+        - **红色箭头**：增加PI风险的因素
+        - **蓝色箭头**：降低PI风险的因素  
         - **箭头长度**：表示该因素影响程度的大小
         - **基准值**：模型在训练数据上的平均预测值
         - **输出值**：当前患者的预测值
